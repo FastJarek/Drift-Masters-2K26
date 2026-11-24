@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#0a1016" />
+    <title>Operacja: Widmo – strzelanka 3D</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "DejaVu Sans", system-ui, -apple-system, sans-serif;
+        --akcent: #7ef0a6;
+        --akcent2: #ffbe5c;
+        --niebezp: #ff5d5d;
+        --panel: rgba(9, 17, 23, 0.86);
+        --ramka: rgba(126, 240, 166, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #070c11;
+        color: #eaf3ed;
+        user-select: none;
+      }
+
+      #aplikacja {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      canvas#gra {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none;
+      }
+
+      .ukryty {
+        display: none !important;
+      }
+
+      .ekran {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+        background:
+          radial-gradient(circle at 50% 25%, rgba(33, 74, 58, 0.42), transparent 55%),
+          rgba(4, 9, 13, 0.94);
+        overflow: auto;
+      }
+
+      .karta-menu {
+        width: min(860px, 100%);
+        background: linear-gradient(160deg, rgba(18, 30, 38, 0.96), rgba(9, 16, 22, 0.98));
+        border: 1px solid var(--ramka);
+        border-radius: 16px;
+        padding: 22px;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+      }
+
+      .nadpis {
+        font-size: 0.72rem;
+        letter-spacing: 0.32em;
+        color: var(--akcent);
+        text-transform: uppercase;
+        margin: 0 0 6px;
+      }
+
+      h1 {
+        font-size: clamp(1.8rem, 5vw, 3rem);
+        margin: 0 0 6px;
+        letter-spacing: 0.05em;
+        line-height: 1.05;
+      }
+
+      h1 span {
+        color: var(--akcent);
+      }
+
+      .lead {
+        margin: 0 0 18px;
+        color: #a9c2b3;
+        font-size: 0.92rem;
+        line-height: 1.5;
+      }
+
+      h2 {
+        font-size: 0.78rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--akcent2);
+        margin: 18px 0 10px;
+      }
+
+      .postacie {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+        gap: 10px;
+      }
+
+      .postac {
+        position: relative;
+        text-align: left;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.035);
+        color: inherit;
+        padding: 12px 12px 11px;
+        cursor: pointer;
+        transition: transform 0.12s, border-color 0.12s, background 0.12s;
+        font: inherit;
+      }
+
+      .postac:hover {
+        transform: translateY(-2px);
+        border-color: var(--ramka);
+      }
+
+      .postac.wybrana {
+        border-color: var(--akcent);
+        background: rgba(126, 240, 166, 0.12);
+        box-shadow: inset 0 0 0 1px rgba(126, 240, 166, 0.25);
+      }
+
+      .postac .kropka {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 7px;
+        box-shadow: 0 0 10px currentColor;
+      }
+
+      .postac b {
+        font-size: 0.98rem;
+      }
+
+      .postac small {
+        display: block;
+        color: #9fb5a8;
+        margin-top: 7px;
+        font-size: 0.76rem;
+        line-height: 1.35;
+      }
+
+      .stat {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 6px;
+        font-size: 0.68rem;
+        color: #b8cdbf;
+      }
+
+      .stat i {
+        display: block;
+        height: 4px;
+        border-radius: 4px;
+        background: var(--akcent);
+        opacity: 0.8;
+      }
+
+      .szereg {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-end;
+        margin-top: 16px;
+      }
+
+      .pole {
+        flex: 1 1 220px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .pole label {
+        font-size: 0.74rem;
+        color: #a9c2b3;
+        letter-spacing: 0.08em;
+      }
+
+      input#imie {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--ramka);
+        background: rgba(0, 0, 0, 0.45);
+        color: #fff;
+        font: inherit;
+        font-size: 1rem;
+        outline: none;
+        user-select: text;
+      }
+
+      input#imie:focus {
+        border-color: var(--akcent);
+      }
+
+      button.primary,
+      button.secondary {
+        border: 0;
+        border-radius: 10px;
+        padding: 13px 22px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        letter-spacing: 0.04em;
+        touch-action: manipulation;
+      }
+
+      button.primary {
+        background: var(--akcent);
+        color: #07140d;
+        box-shadow: 0 6px 20px rgba(126, 240, 166, 0.22);
+      }
+
+      button.primary:hover {
+        background: #9cfabb;
+      }
+
+      button.secondary {
+        background: rgba(255, 255, 255, 0.09);
+        color: #eaf3ed;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+      }
+
+      button.secondary:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .klawisze {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 6px 22px;
+        font-size: 0.78rem;
+        color: #b8cdbf;
+      }
+
+      .klawisze div {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 1px dotted rgba(255, 255, 255, 0.09);
+        padding: 3px 0;
+      }
+
+      kbd {
+        font: inherit;
+        font-size: 0.72rem;
+        color: var(--akcent);
+        white-space: nowrap;
+      }
+
+      .uwaga {
+        margin-top: 14px;
+        font-size: 0.73rem;
+        color: #94ac9c;
+        line-height: 1.5;
+      }
+
+      /* ---------- HUD ---------- */
+      #hud {
+        position: absolute;
+        inset: 0;
+        /* HUD nad celownikiem, pod ekranami menu i pauzy. */
+        z-index: 12;
+        pointer-events: none;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 10px;
+        backdrop-filter: blur(6px);
+      }
+
+      #hud-gracz {
+        position: absolute;
+        top: calc(12px + env(safe-area-inset-top));
+        left: calc(12px + env(safe-area-inset-left));
+        width: min(280px, 42vw);
+        padding: 9px 12px;
+        transition: border-color 0.12s, box-shadow 0.12s;
+      }
+
+      #hud-gracz.raniony {
+        border-color: var(--niebezp);
+        box-shadow: 0 0 20px rgba(255, 93, 93, 0.5);
+      }
+
+      #naglowek-gracza {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 0.74rem;
+        margin-bottom: 7px;
+      }
+
+      #naglowek-gracza b {
+        color: var(--akcent);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      #naglowek-gracza span {
+        color: #9fb5a8;
+      }
+
+      .pasek {
+        height: 8px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+        margin: 5px 0;
+      }
+
+      .pasek > i {
+        display: block;
+        height: 100%;
+        width: 100%;
+        border-radius: 8px;
+        transition: width 0.16s linear;
+      }
+
+      #pasek-zycia {
+        background: linear-gradient(90deg, #ff5d5d, #ff9d5d);
+      }
+
+      #pasek-wytrzymalosci {
+        background: linear-gradient(90deg, #4bc0ff, #7ef0a6);
+      }
+
+      .etykieta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.66rem;
+        color: #aebfb4;
+        letter-spacing: 0.05em;
+      }
+
+      #hud-cel {
+        position: absolute;
+        top: calc(12px + env(safe-area-inset-top));
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 8px 16px;
+        text-align: center;
+        min-width: 220px;
+      }
+
+      #hud-cel .small {
+        font-size: 0.62rem;
+        letter-spacing: 0.22em;
+        color: var(--akcent2);
+      }
+
+      #cel-tekst {
+        font-size: 0.83rem;
+        margin-top: 3px;
+        font-weight: 700;
+      }
+
+      #cel-liczniki {
+        font-size: 0.67rem;
+        color: #aebfb4;
+        margin-top: 3px;
+      }
+
+      #hud-mapa {
+        position: absolute;
+        top: calc(12px + env(safe-area-inset-top));
+        right: calc(12px + env(safe-area-inset-right));
+        padding: 6px;
+      }
+
+      canvas#minimap {
+        display: block;
+        width: 148px;
+        height: 148px;
+        border-radius: 6px;
+        background: #0b1518;
+      }
+
+      .przyciski-hud {
+        position: absolute;
+        top: calc(168px + env(safe-area-inset-top));
+        right: calc(12px + env(safe-area-inset-right));
+        display: flex;
+        gap: 6px;
+        pointer-events: auto;
+      }
+
+      .przyciski-hud button {
+        width: 38px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: var(--panel);
+        color: #eaf3ed;
+        font-size: 0.8rem;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      #hud-bron {
+        position: absolute;
+        right: calc(12px + env(safe-area-inset-right));
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        padding: 10px 13px;
+        min-width: 208px;
+        text-align: right;
+      }
+
+      #nazwa-broni {
+        font-size: 0.72rem;
+        color: #a9c2b3;
+        letter-spacing: 0.08em;
+      }
+
+      #ammo {
+        font-size: 2.15rem;
+        font-weight: 700;
+        line-height: 1.05;
+        color: #fff;
+      }
+
+      #ammo small {
+        font-size: 0.95rem;
+        color: #93a89a;
+        font-weight: 400;
+      }
+
+      #sloty {
+        display: flex;
+        gap: 5px;
+        justify-content: flex-end;
+        margin-top: 7px;
+      }
+
+      .slot {
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        padding: 3px 7px;
+        font-size: 0.65rem;
+        color: #96a99c;
+      }
+
+      .slot.aktywny {
+        border-color: var(--akcent);
+        color: var(--akcent);
+        background: rgba(126, 240, 166, 0.1);
+      }
+
+      #zoom-info {
+        font-size: 0.7rem;
+        color: var(--akcent2);
+        margin-top: 5px;
+        min-height: 0.9em;
+      }
+
+      #pasek-przeladowania {
+        height: 3px;
+        margin-top: 5px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+
+      #pasek-przeladowania i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: var(--akcent2);
+      }
+
+      #hud-interakcja {
+        position: absolute;
+        left: 50%;
+        bottom: calc(78px + env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        font-size: 0.82rem;
+        background: rgba(8, 15, 20, 0.82);
+        border: 1px solid var(--ramka);
+        border-radius: 8px;
+        padding: 7px 13px;
+        white-space: nowrap;
+        color: var(--akcent);
+      }
+
+      #hud-stany {
+        position: absolute;
+        left: calc(12px + env(safe-area-inset-left));
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        max-width: 40vw;
+      }
+
+      .chip {
+        font-size: 0.64rem;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(9, 17, 23, 0.8);
+        border-radius: 6px;
+        padding: 4px 7px;
+        color: #9fb5a8;
+      }
+
+      .chip.on {
+        color: var(--akcent);
+        border-color: var(--akcent);
+      }
+
+      #komunikat {
+        position: absolute;
+        top: 28%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(8, 15, 20, 0.9);
+        border-left: 3px solid var(--akcent2);
+        padding: 8px 14px;
+        border-radius: 4px;
+        font-size: 0.86rem;
+        max-width: min(90vw, 520px);
+        text-align: center;
+      }
+
+      /* Celownik i luneta */
+      #celownik {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 0;
+        height: 0;
+        z-index: 6;
+        pointer-events: none;
+      }
+
+      #celownik i {
+        position: absolute;
+        background: rgba(230, 255, 238, 0.9);
+        box-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
+        display: block;
+      }
+
+      #celownik .g {
+        --odstep: 8px;
+      }
+
+      #celownik .g.h {
+        width: 9px;
+        height: 2px;
+        top: -1px;
+      }
+
+      #celownik .g.v {
+        width: 2px;
+        height: 9px;
+        left: -1px;
+      }
+
+      #celownik .lewo {
+        right: var(--odstep);
+      }
+
+      #celownik .prawo {
+        left: var(--odstep);
+      }
+
+      #celownik .gora {
+        bottom: var(--odstep);
+      }
+
+      #celownik .dol {
+        top: var(--odstep);
+      }
+
+      #celownik .kropka {
+        width: 2px;
+        height: 2px;
+        left: -1px;
+        top: -1px;
+        border-radius: 50%;
+        opacity: 0.75;
+      }
+
+      #trafienie {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 26px;
+        height: 26px;
+        transform: translate(-50%, -50%) rotate(45deg);
+        opacity: 0;
+        z-index: 7;
+        pointer-events: none;
+      }
+
+      #trafienie i {
+        position: absolute;
+        background: #fff;
+        border-radius: 2px;
+      }
+
+      #trafienie i:nth-child(1),
+      #trafienie i:nth-child(2) {
+        width: 2px;
+        height: 8px;
+        left: 12px;
+      }
+
+      #trafienie i:nth-child(1) {
+        top: 0;
+      }
+
+      #trafienie i:nth-child(2) {
+        bottom: 0;
+      }
+
+      #trafienie i:nth-child(3),
+      #trafienie i:nth-child(4) {
+        height: 2px;
+        width: 8px;
+        top: 12px;
+      }
+
+      #trafienie i:nth-child(3) {
+        left: 0;
+      }
+
+      #trafienie i:nth-child(4) {
+        right: 0;
+      }
+
+      #trafienie.glowa i {
+        background: var(--akcent2);
+      }
+
+      #luneta {
+        position: absolute;
+        inset: 0;
+        z-index: 6;
+        pointer-events: none;
+        background: radial-gradient(
+          circle at 50% 50%,
+          transparent 0,
+          transparent 24vmin,
+          rgba(0, 0, 0, 0.96) 25.5vmin,
+          #000 100%
+        );
+      }
+
+      #luneta::before,
+      #luneta::after {
+        content: "";
+        position: absolute;
+        background: rgba(10, 25, 20, 0.85);
+      }
+
+      #luneta::before {
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+      }
+
+      #luneta::after {
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+      }
+
+      .mil {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 4px;
+        height: 2px;
+        background: rgba(10, 25, 20, 0.85);
+        transform: translate(-50%, -50%);
+      }
+
+      #uszkodzenie {
+        position: absolute;
+        inset: 0;
+        z-index: 8;
+        pointer-events: none;
+        opacity: 0;
+        background: radial-gradient(circle at 50% 50%, transparent 35%, rgba(180, 10, 10, 0.72) 100%);
+        transition: opacity 0.22s ease-out;
+      }
+
+      #strzalka-ran {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 8;
+        width: 0;
+        height: 0;
+        opacity: 0;
+        border-left: 10px solid transparent;
+        border-right: 10px solid transparent;
+        border-bottom: 22px solid var(--niebezp);
+        transform-origin: 50% 90px;
+        pointer-events: none;
+      }
+
+      #podpowiedz {
+        position: absolute;
+        left: 50%;
+        bottom: calc(24px + env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        z-index: 9;
+        font-size: 0.74rem;
+        color: #b9cdbf;
+        background: rgba(8, 15, 20, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 6px 12px;
+        border-radius: 8px;
+        pointer-events: none;
+      }
+
+      /* Ekran pauzy i końca */
+      .karta-menu.small-card {
+        width: min(520px, 100%);
+        text-align: center;
+      }
+
+      .wyniki {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin: 18px 0;
+      }
+
+      .wynik {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 10px 6px;
+      }
+
+      .wynik b {
+        display: block;
+        font-size: 1.3rem;
+        color: var(--akcent);
+      }
+
+      .wynik span {
+        font-size: 0.65rem;
+        color: #9fb5a8;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .rzedy {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+
+      @media (max-width: 560px) {
+        #hud-gracz {
+          width: 47vw;
+          padding: 7px 9px;
+        }
+        #hud-cel {
+          min-width: 0;
+          max-width: 76vw;
+        }
+        #hud-bron {
+          min-width: 150px;
+          padding: 7px 9px;
+        }
+        #ammo {
+          font-size: 1.6rem;
+        }
+        .karta-menu {
+          padding: 16px;
+        }
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./lib/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="aplikacja">
+      <canvas id="gra">Twoja przeglądarka nie obsługuje WebGL.</canvas>
+
+      <div id="hud" class="ukryty">
+        <div id="hud-gracz" class="panel">
+          <div id="naglowek-gracza">
+            <b id="imie-gracza">Żołnierz</b>
+            <span id="postac-gracza">Szturmowiec</span>
+          </div>
+          <div class="etykieta"><span>ZDROWIE</span><span id="zycie-tekst">100 / 100</span></div>
+          <div class="pasek"><i id="pasek-zycia"></i></div>
+          <div class="etykieta"><span>KONDYCJA</span><span id="wytrzymalosc-tekst">100%</span></div>
+          <div class="pasek"><i id="pasek-wytrzymalosci"></i></div>
+        </div>
+
+        <div id="hud-cel" class="panel">
+          <div class="small">CEL MISJI</div>
+          <div id="cel-tekst">Pokonaj wrogów</div>
+          <div id="cel-liczniki">Wrogowie: 6 · Zabici: 0 · 00:00</div>
+        </div>
+
+        <div id="hud-mapa" class="panel">
+          <canvas id="minimap" width="296" height="296"></canvas>
+        </div>
+        <div class="przyciski-hud">
+          <button id="btn-pauza" type="button" title="Pauza (Esc)">II</button>
+          <button id="btn-dzwiek" type="button" title="Dźwięk (M)">♪</button>
+        </div>
+
+        <div id="hud-bron" class="panel">
+          <div id="nazwa-broni">Pistolet M9</div>
+          <div id="ammo">12 <small>/ 60</small></div>
+          <div id="sloty">
+            <span class="slot aktywny" data-slot="0">1 PIST</span>
+            <span class="slot" data-slot="1">2 AK</span>
+            <span class="slot" data-slot="2">3 M24</span>
+          </div>
+          <div id="zoom-info"></div>
+          <div id="pasek-przeladowania"><i></i></div>
+        </div>
+
+        <div id="hud-interakcja" class="ukryty"></div>
+        <div id="hud-stany">
+          <span class="chip" id="chip-kuc">CTRL KUC</span>
+          <span class="chip" id="chip-sprint">SHIFT SPRINT</span>
+          <span class="chip" id="chip-cel">LPM CEL</span>
+        </div>
+        <div id="komunikat" class="ukryty"></div>
+      </div>
+
+      <div id="celownik" class="ukryty">
+        <i class="g h lewo"></i><i class="g h prawo"></i>
+        <i class="g v gora"></i><i class="g v dol"></i>
+        <i class="kropka"></i>
+      </div>
+      <div id="trafienie"><i></i><i></i><i></i><i></i></div>
+      <div id="luneta" class="ukryty">
+        <i class="mil" style="top: calc(50% - 12px)"></i>
+        <i class="mil" style="top: calc(50% - 24px)"></i>
+        <i class="mil" style="top: calc(50% + 12px)"></i>
+        <i class="mil" style="top: calc(50% + 24px)"></i>
+        <i class="mil" style="left: calc(50% - 12px)"></i>
+        <i class="mil" style="left: calc(50% + 12px)"></i>
+      </div>
+      <div id="uszkodzenie"></div>
+      <div id="strzalka-ran"></div>
+      <div id="podpowiedz" class="ukryty">Kliknij w obraz, aby przejąć mysz</div>
+
+      <div id="menu" class="ekran">
+        <div class="karta-menu">
+          <p class="nadpis">Symulator taktyczny · tryb pojedynczego żołnierza</p>
+          <h1>OPERACJA: <span>WIDMO</span></h1>
+          <p class="lead">
+            Eliminuj wrogów na zamkniętym poligonie, uruchom terminal i ewakuuj się.
+            Wybierz postać, wpisz imię i rozpocznij misję. Sterowanie wyłącznie
+            klawiaturą i myszką – na Androidzie wymagana klawiatura i mysz
+            podłączone przez USB-C lub Bluetooth.
+          </p>
+
+          <h2>Wybierz postać</h2>
+          <div id="postacie" class="postacie"></div>
+
+          <h2>Imię żołnierza</h2>
+          <div class="szereg">
+            <div class="pole">
+              <label for="imie">Wpisz imię / pseudonim</label>
+              <input id="imie" maxlength="16" placeholder="np. Nova" autocomplete="off" />
+            </div>
+            <button id="start" class="primary" type="button">ROZPOCZNIJ MISJĘ ▶</button>
+          </div>
+
+          <h2>Sterowanie – klawiatura i mysz</h2>
+          <div class="klawisze">
+            <div><span>Chodzenie</span><kbd>W A S D</kbd></div>
+            <div><span>Prechył / strafe</span><kbd>Q / E</kbd></div>
+            <div><span>Patrzenie</span><kbd>MYSZ</kbd></div>
+            <div><span>Sprint</span><kbd>SHIFT</kbd></div>
+            <div><span>Kuc / skradanie</span><kbd>CTRL</kbd></div>
+            <div><span>Skok</span><kbd>SPACE</kbd></div>
+            <div><span>Strzał</span><kbd>PRAWY PRZYCISK MYSZY</kbd></div>
+            <div><span>Tryb celowania</span><kbd>LEWY PRZYCISK MYSZY</kbd></div>
+            <div><span>Zoom lunety M24</span><kbd>KÓŁKO MYSZY</kbd></div>
+            <div><span>Użyj / interakcja</span><kbd>E (lub F)</kbd></div>
+            <div><span>Przeładowanie</span><kbd>R</kbd></div>
+            <div><span>Bronie</span><kbd>1 / 2 / 3</kbd></div>
+            <div><span>Pauza</span><kbd>ESC</kbd></div>
+            <div><span>Dźwięk</span><kbd>M</kbd></div>
+          </div>
+          <p class="uwaga">
+            E działa jako strafe w prawo, ale gdy jesteś przy przedmiocie lub terminalu
+            – wykonuje interakcję. F zawsze wykonuje interakcję. Sterowanie dotykowe
+            zostało wyłączone: gra wymaga klawiatury i myszy. Android z klawiaturą
+            i myszką działa tak samo jak PC.
+          </p>
+        </div>
+      </div>
+
+      <div id="pauza" class="ekran ukryty">
+        <div class="karta-menu small-card">
+          <p class="nadpis">Misja wstrzymana</p>
+          <h1>PAUZA</h1>
+          <p class="lead">Mysz została zwolniona. Wróć do gry lub rozpocznij od nowa.</p>
+          <div class="rzedy">
+            <button id="wznow" class="primary" type="button">WZNÓW ▶</button>
+            <button id="restart-pauza" class="secondary" type="button">RESTART</button>
+            <button id="fullscreen" class="secondary" type="button">PEŁNY EKRAN</button>
+            <button id="menu-pauza" class="secondary" type="button">MENU</button>
+          </div>
+          <p class="uwaga">
+            Android z klawiaturą: podłącz mysz/klawiaturę przez USB-C lub Bluetooth,
+            kliknij w obraz i graj identycznie jak na PC. Kółko myszy zmienia zoom
+            karabinu M24.
+          </p>
+        </div>
+      </div>
+
+      <div id="koniec" class="ekran ukryty">
+        <div class="karta-menu small-card">
+          <p class="nadpis" id="koniec-nadpis">Raport z misji</p>
+          <h1 id="koniec-tytul">EWAKUACJA</h1>
+          <p class="lead" id="koniec-opis"></p>
+          <div class="wyniki">
+            <div class="wynik"><b id="wynik-zabici">0</b><span>Zabici</span></div>
+            <div class="wynik"><b id="wynik-czas">00:00</b><span>Czas</span></div>
+            <div class="wynik"><b id="wynik-celnosc">0%</b><span>Celność</span></div>
+          </div>
+          <div class="rzedy">
+            <button id="restart-koniec" class="primary" type="button">JESZCZE RAZ ▶</button>
+            <button id="menu-koniec" class="secondary" type="button">MENU</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <script type="module" src="./strzelec3d.mjs"></script>
+  </body>
+</html>

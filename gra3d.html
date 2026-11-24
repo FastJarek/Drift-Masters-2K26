@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Omijaj przeszkody 3D</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "DejaVu Sans", system-ui, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #15231a;
+        color: #f0f5f1;
+        display: flex;
+        justify-content: center;
+      }
+
+      main {
+        width: min(480px, 100%);
+        padding: 16px 12px 24px;
+        box-sizing: border-box;
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 1.4rem;
+        margin: 0 0 12px;
+      }
+
+      .ramka {
+        position: relative;
+        width: 100%;
+        line-height: 0;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+        touch-action: none;
+      }
+
+      .hud {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-between;
+        padding: 14px 16px;
+        box-sizing: border-box;
+        background: rgba(0, 0, 0, 0.45);
+        font-size: 1.05rem;
+        line-height: 1;
+        pointer-events: none;
+      }
+
+      .podpis-grze {
+        position: absolute;
+        bottom: 12px;
+        left: 0;
+        right: 0;
+        font-size: 0.85rem;
+        color: #f0f5f1;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+        pointer-events: none;
+      }
+
+      .ekran-koniec {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: 8px;
+        line-height: 1.4;
+      }
+
+      .ekran-koniec.ukryty {
+        display: none;
+      }
+
+      .ekran-koniec h2 {
+        margin: 0;
+        font-size: 2.2rem;
+      }
+
+      .ekran-koniec p {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .ekran-koniec small {
+        color: #b9c9bd;
+      }
+
+      .ekran-koniec button,
+      .sterowanie button {
+        border: 0;
+        border-radius: 10px;
+        background: #2f6b3c;
+        color: white;
+        cursor: pointer;
+        touch-action: none;
+        user-select: none;
+      }
+
+      .ekran-koniec button {
+        margin-top: 10px;
+        padding: 12px 20px;
+        font-size: 1rem;
+      }
+
+      .ekran-koniec button:active,
+      .sterowanie button:active {
+        background: #3f8a50;
+      }
+
+      .sterowanie {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 14px;
+      }
+
+      .sterowanie button {
+        width: 88px;
+        height: 56px;
+        font-size: 1.6rem;
+      }
+
+      .podpis {
+        font-size: 0.85rem;
+        color: #b9c9bd;
+        line-height: 1.5;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./lib/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <h1>Omijaj przeszkody 3D</h1>
+      <div class="ramka">
+        <canvas id="gra" width="480" height="720">
+          Twoja przeglądarka nie obsługuje canvas.
+        </canvas>
+        <div class="hud">
+          <span id="wynik">Wynik: 0</span>
+          <span id="zycia">Życia: 3</span>
+        </div>
+        <div class="podpis-grze">← → lub A/D – sterowanie</div>
+        <div id="koniec" class="ekran-koniec ukryty">
+          <h2>Koniec gry</h2>
+          <p id="koniec-wynik"></p>
+          <p id="koniec-najlepszy"></p>
+          <button id="restart" type="button">Zagraj ponownie</button>
+          <small>R, Enter lub Spacja</small>
+        </div>
+      </div>
+      <div class="sterowanie">
+        <button id="lewo" type="button" aria-label="Jedź w lewo">◀</button>
+        <button id="prawo" type="button" aria-label="Jedź w prawo">▶</button>
+      </div>
+      <p class="podpis">
+        Kamera za samochodem. Omijaj czerwone auta, zielony to Ty.<br />
+        Kolizja kosztuje życie (startowo 3).
+      </p>
+    </main>
+    <script type="module" src="./gra3d.mjs"></script>
+  </body>
+</html>

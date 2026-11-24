@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Samoloty 3D – swobodny lot</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "DejaVu Sans", system-ui, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #101820;
+        color: #eaf2f8;
+        display: flex;
+        justify-content: center;
+      }
+
+      main {
+        width: min(960px, 100%);
+        padding: 14px 12px 28px;
+        box-sizing: border-box;
+      }
+
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 10px;
+      }
+
+      .ramka {
+        position: relative;
+        width: 100%;
+        line-height: 0;
+      }
+
+      #gra-samolot {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+        box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
+      }
+
+      .hud {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        line-height: 1.35;
+        font-size: 0.9rem;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+      }
+
+      .hud-lewo,
+      .hud-prawo {
+        position: absolute;
+        top: 12px;
+        background: rgba(0, 12, 24, 0.42);
+        border-radius: 8px;
+        padding: 10px 12px;
+        min-width: 150px;
+      }
+
+      .hud-lewo { left: 12px; }
+      .hud-prawo { right: 12px; text-align: right; }
+
+      .hud .duze {
+        font-size: 1.35rem;
+        font-weight: bold;
+      }
+
+      .pasek {
+        height: 8px;
+        margin-top: 5px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      #paliwo-pasek {
+        height: 100%;
+        width: 100%;
+        background: #59d77a;
+        transition: width 0.15s linear, background 0.2s;
+      }
+
+      .ostrzezenie {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #ff5a52;
+        font-size: 1.1rem;
+        font-weight: bold;
+        display: none;
+      }
+
+      .ostrzezenie.widoczne { display: block; }
+
+      .komunikat {
+        position: absolute;
+        bottom: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 12, 24, 0.55);
+        padding: 6px 14px;
+        border-radius: 6px;
+        white-space: nowrap;
+        font-size: 0.9rem;
+      }
+
+      .panel {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: stretch;
+        margin-top: 12px;
+      }
+
+      .minimapa-ramka {
+        position: relative;
+        width: 210px;
+        height: 210px;
+        flex: 0 0 auto;
+      }
+
+      #minimapa {
+        width: 210px;
+        height: 210px;
+        border: 1px solid #3a5a4a;
+        border-radius: 8px;
+        background: #1d3323;
+        cursor: crosshair;
+      }
+
+      .minimapa-etykieta {
+        position: absolute;
+        bottom: 6px;
+        left: 8px;
+        font-size: 0.7rem;
+        color: #b9d3c2;
+        pointer-events: none;
+      }
+
+      .przyciski {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+        gap: 8px;
+        flex: 1 1 260px;
+        align-content: start;
+      }
+
+      button {
+        border: 1px solid #3c6650;
+        border-radius: 8px;
+        background: #1e3a2b;
+        color: #eaf2f8;
+        padding: 10px 12px;
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+
+      button:hover { background: #2b5540; }
+      button.aktywny { background: #2f8a4a; border-color: #59d77a; }
+
+      .pomoc {
+        margin-top: 12px;
+        padding: 12px 16px;
+        border: 1px solid #36503f;
+        border-radius: 8px;
+        background: #16251d;
+        font-size: 0.85rem;
+        line-height: 1.7;
+        columns: 2;
+      }
+
+      .pomoc.ukryta { display: none; }
+
+      kbd {
+        background: #2b3d33;
+        border: 1px solid #4a6b57;
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-size: 0.8rem;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./lib/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <h1>Samoloty 3D – swobodny lot</h1>
+      <div class="ramka">
+        <canvas id="gra-samolot" width="960" height="600"></canvas>
+        <div class="hud">
+          <div class="hud-lewo">
+            <div>Prędkość <span id="hud-predkosc" class="duze">0</span> km/h</div>
+            <div>Wysokość <span id="hud-wysokosc">0</span> m</div>
+            <div>Pionowa <span id="hud-pion">0.0</span> m/s</div>
+            <div>Kurs <span id="hud-kurs">000</span>°</div>
+          </div>
+          <div class="hud-prawo">
+            <div>Paliwo <span id="hud-paliwo">100</span>%</div>
+            <div class="pasek"><div id="paliwo-pasek"></div></div>
+            <div>Gaz <span id="hud-gaz">0</span>%</div>
+            <div>Podwozie <span id="hud-podwozie">WY</span></div>
+            <div>Klapy <span id="hud-klapy">WY</span></div>
+            <div>Autopilot <span id="hud-ap">OFF</span></div>
+            <div>Cel: <span id="hud-cel">–</span></div>
+          </div>
+          <div id="hud-stall" class="ostrzezenie">⚠ PRZECIĄGNIĘCIE ⚠</div>
+          <div id="hud-komunikat" class="komunikat">Gotowy do startu – dodaj gaz (Shift)</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="minimapa-ramka">
+          <canvas id="minimapa" width="210" height="210"></canvas>
+          <div class="minimapa-etykieta">klik = punkt trasy</div>
+        </div>
+        <div class="przyciski">
+          <button id="btn-ap" type="button">Autopilot (P)</button>
+          <button id="btn-clear" type="button">Wyczyść trasę</button>
+          <button id="btn-undo" type="button">Usuń ostatni punkt</button>
+          <button id="btn-camera" type="button">Kamera (C)</button>
+          <button id="btn-reset" type="button">Reset (R)</button>
+          <button id="btn-help" type="button">Sterowanie (H)</button>
+        </div>
+      </div>
+
+      <div id="pomoc" class="pomoc ukryta">
+        <div><kbd>W</kbd> / <kbd>S</kbd> – ster wysokości (nuszenie / podciąganie)</div>
+        <div><kbd>A</kbd> / <kbd>D</kbd> – lotki, przechył i skręt</div>
+        <div><kbd>Q</kbd> / <kbd>E</kbd> – ster kierunku</div>
+        <div><kbd>Shift</kbd> / <kbd>Ctrl</kbd> – gaz więcej / mniej</div>
+        <div><kbd>G</kbd> – podwozie, <kbd>F</kbd> – klapy</div>
+        <div><kbd>Space</kbd> – hamulce na ziemi</div>
+        <div><kbd>C</kbd> – kamera: za samolotem / kokpit</div>
+        <div><kbd>P</kbd> – autopilot po trasie</div>
+        <div><kbd>R</kbd> – reset samolotu</div>
+        <div>Klik na minimapę dodaje punkt trasy, prawy klik usuwa ostatni.</div>
+        <div>Paliwo uzupełnia się po zatrzymaniu na ziemi.</div>
+        <div>Za wysoka prędkość pionowa przy lądowaniu = crash.</div>
+      </div>
+    </main>
+    <script type="module" src="./samoloty.mjs"></script>
+  </body>
+</html>
