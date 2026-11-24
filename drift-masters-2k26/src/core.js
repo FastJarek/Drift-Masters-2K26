@@ -213,83 +213,148 @@ export const MEDAL_ICON = { gold: '🥇', silver: '🥈', bronze: '🥉', none: 
 // Fizyka auta (uproszczony model rowerowy z poślizgiem bocznym)
 // ---------------------------------------------------------------------------
 
+/**
+ * Parametry fizyczne auta. Model zbliżony do symulacyjnych gier driftowych
+ * (CarX): osobne osie przednia/tylna, sztywność opon, koło przyczepności
+ * i przenoszenie masy. Ulepszenia w garażu realnie zmieniają te wartości.
+ */
 export function carParams(tuning) {
   const t = tuning || DEFAULT_SAVE.tuning;
   return {
-    accel: 10.2 + t.engine * 1.75,
-    maxSpeed: 39 + t.engine * 2.8,
-    brake: 21,
-    reverse: 9,
-    grip: 4.2 + t.grip * 0.55 - t.drift * 0.3,
-    maxYaw: 1.55 + t.suspension * 0.075 + t.drift * 0.09,
-    nitroAccel: 9.5,
-    drag: 0.012,
+    mass: 1150,          // kg
+    a: 1.15,             // odległość środka ciężkości od osi przedniej
+    b: 1.45,             // ... i tylnej
+    inertia: 1350,       // kg·m²
+    cgHeight: 0.52,
+    gravity: 9.81,
+    engineForce: 7000 + t.engine * 1200,   // N na kołach
+    brakeForce: 9500,
+    reverseForce: 3000,
+    boostForce: 4600,
+    maxSpeed: 42 + t.engine * 3,
+    steerMax: 0.55 + t.suspension * 0.012,
+    steerRate: 3.4 + t.suspension * 0.5,
+    // Sztywność boczna opon [N/rad]
+    corneringFront: 75000 + t.grip * 4200,
+    corneringRear: 80000 + t.grip * 4600 - t.drift * 5200,
+    // Współczynnik przyczepności (tylne opony słabsze po ustawieniu driftowym)
+    muFront: 1.18 + t.grip * 0.045,
+    muRear: 1.3 + t.grip * 0.05 - t.drift * 0.075,
+    yawDamping: 1000 + t.suspension * 80,
+    dragCoeff: 0.42,
+    rollingResistance: 175,
   };
 }
 
 export function createCar(x = 0, z = 0, yaw = 0) {
-  return { x, z, yaw, vx: 0, vz: 0, yawRate: 0, nitro: 100, speed: 0, driftAngle: 0, boost: false, gear: 1 };
+  return {
+    x, z, yaw, vx: 0, vz: 0, yawRate: 0, nitro: 100,
+    speed: 0, driftAngle: 0, boost: false, gear: 1,
+    steerAngle: 0, lateralAccel: 0,
+  };
 }
 
 /**
- * Krok fizyki. Mutuje `car`; zwraca dodatkowe informacje o poślizgu.
- * input: {throttle, brake, steer, handbrake, nitro} — wartości 0..1 / -1..1 / bool
+ * Krok fizyki — uproszczony model rowerowy z kątami poślizgu opon.
+ * Wewnętrzny układ: x przód, y lewo, obrót przeciwnie do ruchu wskazówek zegara.
+ * Sterowanie `steer > 0` oznacza skręt w prawo (zgodnie z interfejsem gry).
+ * Mutuje `car`; zwraca dodatkowe informacje o poślizgu.
  */
 export function stepCar(car, input, params, dt) {
   dt = clamp(dt, 0, 0.05);
-  const fx = Math.sin(car.yaw), fz = Math.cos(car.yaw);
-  const rx = Math.cos(car.yaw), rz = -Math.sin(car.yaw);
-  let vf = car.vx * fx + car.vz * fz;   // prędkość wzdłużna
-  let vr = car.vx * rx + car.vz * rz;   // prędkość boczna
-
   const throttle = clamp(input.throttle || 0, 0, 1);
   const brake = clamp(input.brake || 0, 0, 1);
   const steer = clamp(input.steer || 0, -1, 1);
   const handbrake = !!input.handbrake;
+
   car.boost = !!input.nitro && car.nitro > 0 && throttle > 0.1;
   if (car.boost) car.nitro = Math.max(0, car.nitro - 32 * dt);
   else car.nitro = Math.min(100, car.nitro + 5 * dt);
 
-  // Silnik i bieg wsteczny
-  const speedRatio = clamp(Math.abs(vf) / (params.maxSpeed + (car.boost ? 12 : 0)), 0, 1);
-  vf += throttle * (params.accel + (car.boost ? params.nitroAccel : 0)) * (1 - speedRatio * 0.68) * dt;
-  if (brake > 0) {
-    if (vf > 0.4) vf = Math.max(0, vf - brake * params.brake * dt);
-    else vf = Math.max(-params.reverse, vf - brake * params.accel * 0.55 * dt);
+  // Współrzędne ciała: przód i lewo (standardowy układ pojazdu).
+  const fx = Math.sin(car.yaw), fz = Math.cos(car.yaw);
+  const lx = -Math.cos(car.yaw), lz = Math.sin(car.yaw);
+  const vf = car.vx * fx + car.vz * fz;
+  const vy = car.vx * lx + car.vz * lz;
+  const r = -car.yawRate; // r > 0 = skręt w lewo
+
+  // Kierownica: przód skręca w lewo dla ujemnego steer (bo steer > 0 to prawo).
+  const speed = Math.abs(vf);
+  const steerLimit = params.steerMax / (1 + speed * speed * 0.0012);
+  const targetDelta = -steer * steerLimit;
+  car.steerAngle = smooth(car.steerAngle, targetDelta, params.steerRate, dt);
+
+  // Napęd / hamowanie / opór
+  const topSpeed = params.maxSpeed + (car.boost ? 8 : 0);
+  const powerCurve = Math.max(0, 1 - (speed / topSpeed) ** 2);
+  let driveForce = throttle * (params.engineForce + (car.boost ? params.boostForce : 0)) * powerCurve;
+  if (brake > 0 && vf < 0.3 && throttle < 0.1) driveForce = -params.reverseForce * brake;
+  let frontBrake = 0, rearBrake = 0;
+  if (brake > 0 && vf > 0.3) {
+    frontBrake = -params.brakeForce * brake * 0.62;
+    rearBrake = -params.brakeForce * brake * 0.38;
   }
-  vf -= vf * params.drag * dt + Math.sign(vf) * 0.45 * dt;
-  if (Math.abs(vf) < 0.05 && throttle === 0) vf = 0;
+  if (handbrake) rearBrake -= params.brakeForce * 0.35;
+  const drag = -params.dragCoeff * vf * speed - Math.sign(vf) * params.rollingResistance;
+  const fxTotal = driveForce + frontBrake + rearBrake * 0.4 + drag;
+  const rearLong = rearBrake * 0.6 + driveForce;
 
-  // Prędkość w świecie zapamiętana przed obrotem nadwozia — to daje inercję i poślizg.
-  car.vx = fx * vf + rx * vr;
-  car.vz = fz * vf + rz * vr;
+  const longAccel = clamp(fxTotal / params.mass, -12, 12);
+  // Przenoszenie masy: hamowanie obciąża przód, przyspieszenie — tył.
+  const loadTotal = params.mass * params.gravity;
+  const wheelbase = params.a + params.b;
+  let frontLoad = loadTotal * params.b / wheelbase - params.mass * longAccel * params.cgHeight / wheelbase;
+  frontLoad = clamp(frontLoad, loadTotal * 0.16, loadTotal * 0.84);
+  const rearLoad = loadTotal - frontLoad;
+  const lateralTransfer = clamp(Math.abs(car.lateralAccel) / params.gravity, 0, 1.4);
+  const frontMu = params.muFront * (1 - 0.12 * lateralTransfer);
+  const rearMu = params.muRear * (handbrake ? 0.55 : 1) * (1 - 0.16 * lateralTransfer);
 
-  // Skręcanie: przy niskiej prędkości kierownica działa słabiej, przy wysokiej jest ograniczona.
-  const lowSpeed = clamp(Math.abs(vf) / 6, 0, 1);
-  const highSpeed = 1 - clamp(Math.abs(vf) / 60, 0, 1) * 0.42;
-  const dir = vf < -0.5 ? -1 : 1;
-  const targetYaw = steer * params.maxYaw * lowSpeed * highSpeed * dir * (handbrake ? 1.25 : 1);
-  car.yawRate = smooth(car.yawRate, targetYaw, handbrake ? 8 : 5.5, dt);
+  // Kąty poślizgu i siły boczne opon
+  const vSafe = Math.max(2.2, speed);
+  const alphaF = Math.atan2(vy + params.a * r, vSafe) - car.steerAngle;
+  const alphaR = Math.atan2(vy - params.b * r, vSafe);
+  const lowSpeedGrip = clamp(speed / 3, 0, 1);
+  const frontCapacity = Math.max(1, frontMu * frontLoad);
+  const rearCapacity = Math.max(1, rearMu * rearLoad);
+  // Koło przyczepności: longitudinalna siła (gaz/hamulec) zabiera część przyczepności bocznej.
+  const frontCircle = Math.sqrt(Math.max(0, 1 - (Math.abs(frontBrake) / frontCapacity) ** 2));
+  const rearCircle = Math.sqrt(Math.max(0, 1 - (Math.min(Math.abs(rearLong), rearCapacity) / rearCapacity) ** 2));
+  // Krzywa opony: siła rośnie do szczytu przy ~8° poślizgu, potem maleje.
+  // Dzięki temu counter-sterowanie realnie ratuje auto przed spinningiem.
+  const tireCurve = (alpha, peak) => {
+    const s = alpha / peak;
+    return (2 * s) / (1 + s * s);
+  };
+  const frontPeak = 0.14 * (75000 / params.corneringFront);
+  const rearPeak = 0.14 * (80000 / params.corneringRear);
+  let fyFront = -frontCapacity * tireCurve(alphaF, frontPeak) * frontCircle * lowSpeedGrip;
+  let fyRear = -rearCapacity * tireCurve(alphaR, rearPeak) * rearCircle * lowSpeedGrip;
+
+  const latAccel = clamp((fyFront + fyRear) / params.mass, -params.gravity * 1.8, params.gravity * 1.8);
+  let rAccel = (params.a * fyFront - params.b * fyRear - params.yawDamping * r) / params.inertia;
+  rAccel = clamp(rAccel, -9, 9);
+
+  // Całkowanie w układzie świata
+  const axWorld = (fxTotal / params.mass) * fx + latAccel * lx;
+  const azWorld = (fxTotal / params.mass) * fz + latAccel * lz;
+  car.vx += axWorld * dt;
+  car.vz += azWorld * dt;
+  const newR = r + rAccel * dt;
+  car.yawRate = clamp(-newR, -2.6, 2.6);
   car.yaw += car.yawRate * dt;
-
-  // Po obrocie wyliczamy składowe w nowym układzie auta i tarcie boczne.
-  const nfx = Math.sin(car.yaw), nfz = Math.cos(car.yaw);
-  const nrx = Math.cos(car.yaw), nrz = -Math.sin(car.yaw);
-  let vf2 = car.vx * nfx + car.vz * nfz;
-  let vr2 = car.vx * nrx + car.vz * nrz;
-  const grip = handbrake ? params.grip * 0.13 : params.grip * (0.94 - Math.min(0.3, Math.abs(vr2) * 0.012));
-  vr2 *= Math.exp(-grip * dt);
-  if (handbrake) vf2 *= Math.exp(-0.28 * dt);
-
-  car.vx = nfx * vf2 + nrx * vr2;
-  car.vz = nfz * vf2 + nrz * vr2;
   car.x += car.vx * dt;
   car.z += car.vz * dt;
+  car.lateralAccel = latAccel;
 
+  const nfx = Math.sin(car.yaw), nfz = Math.cos(car.yaw);
+  const nrx = Math.cos(car.yaw), nrz = -Math.sin(car.yaw);
+  const bodyForward = car.vx * nfx + car.vz * nfz;
+  const bodyRight = car.vx * nrx + car.vz * nrz;
   car.speed = Math.hypot(car.vx, car.vz);
-  car.driftAngle = Math.atan2(vr2, Math.abs(vf2) + 0.5) * 180 / Math.PI;
-  car.gear = vf2 < -0.5 ? -1 : clamp(Math.floor(Math.abs(vf2) / 9) + 1, 1, 6);
-  return { speed: car.speed, driftAngle: car.driftAngle, rearSlip: Math.abs(vr2), throttle, braking: brake > 0 };
+  car.driftAngle = Math.atan2(bodyRight, Math.abs(bodyForward) + 0.5) * 180 / Math.PI;
+  car.gear = bodyForward < -0.5 ? -1 : clamp(Math.floor(Math.abs(bodyForward) / 9) + 1, 1, 6);
+  return { speed: car.speed, driftAngle: car.driftAngle, rearSlip: Math.abs(bodyRight), throttle, braking: brake > 0 };
 }
 
 /** Odbicie od krawędzi trasy: spycha auto do środka i tnie prędkość. */
