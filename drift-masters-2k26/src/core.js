@@ -107,12 +107,12 @@ export function writeSave(storage, save) {
 export const TRACKS = [
   {
     id: 'trening-1', type: 'trening', name: 'Pętla Startowa', desc: 'Szeroka pętla do nauki hamowania i pierwszych poślizgów.',
-    width: 20, laps: 1, checkpoints: 4, theme: 'city', medals: { gold: 42, silver: 55, bronze: 75 },
+    width: 20, laps: 1, checkpoints: 4, theme: 'city', medals: { gold: 17, silver: 23, bronze: 31 },
     points: [[-62, -28], [-46, -48], [0, -54], [48, -46], [64, -22], [66, 12], [46, 38], [0, 46], [-48, 38], [-66, 10]],
   },
   {
     id: 'trening-2', type: 'trening', name: 'Okrąg Poślizgu', desc: 'Klasyczny skidpad — utrzymaj auto w długim, kontrolowanym poślizgu.',
-    width: 17, laps: 1, checkpoints: 4, theme: 'industrial', medals: { gold: 22, silver: 30, bronze: 42 },
+    width: 17, laps: 1, checkpoints: 4, theme: 'industrial', medals: { gold: 12, silver: 16, bronze: 22 },
     points: Array.from({ length: 12 }, (_, i) => {
       const a = (i / 12) * Math.PI * 2;
       return [Math.round(Math.cos(a) * 36), Math.round(Math.sin(a) * 36)];
@@ -120,22 +120,22 @@ export const TRACKS = [
   },
   {
     id: 'trening-3', type: 'trening', name: 'Slalom Miejski', desc: 'Ciasne łuki i szybkie zmiany kierunku. Ćwicz rytm i gaz.',
-    width: 15, laps: 1, checkpoints: 6, theme: 'city', medals: { gold: 54, silver: 70, bronze: 95 },
+    width: 15, laps: 1, checkpoints: 6, theme: 'city', medals: { gold: 24, silver: 32, bronze: 44 },
     points: [[-70, -40], [-35, -45], [-10, -25], [18, -46], [52, -38], [68, -8], [40, 8], [12, 30], [-18, 10], [-50, 32], [-72, 8]],
   },
   {
     id: 'zawody-1', type: 'zawody', name: 'City Night Circuit', desc: 'Nocny obwód miejski. Dwa okrążenia, ostre zakręty i dużo driftu.',
-    width: 14, laps: 2, checkpoints: 6, theme: 'city', medals: { gold: 86, silver: 105, bronze: 130 },
+    width: 14, laps: 2, checkpoints: 6, theme: 'city', medals: { gold: 44, silver: 59, bronze: 81 },
     points: [[-80, -50], [-30, -58], [22, -52], [78, -34], [86, 4], [60, 42], [10, 56], [-42, 46], [-84, 20], [-88, -18]],
   },
   {
     id: 'zawody-2', type: 'zawody', name: 'Strefa Przemysłowa', desc: 'Szerokie aleje, szykany i betonowe bariery. Tu liczy się precyzja.',
-    width: 13, laps: 2, checkpoints: 8, theme: 'industrial', medals: { gold: 104, silver: 128, bronze: 160 },
+    width: 13, laps: 2, checkpoints: 8, theme: 'industrial', medals: { gold: 73, silver: 98, bronze: 135 },
     points: [[-92, -36], [-58, -62], [-12, -55], [18, -28], [48, -60], [92, -44], [96, 6], [58, 24], [74, 62], [18, 70], [-24, 42], [-66, 66], [-96, 26]],
   },
   {
     id: 'zawody-3', type: 'zawody', name: 'Górska Przełęcz', desc: 'Wąski, kręty odcinek górski. Najtrudniejsza trasa w grze.',
-    width: 12, laps: 1, checkpoints: 9, theme: 'mountain', medals: { gold: 112, silver: 140, bronze: 180 },
+    width: 12, laps: 1, checkpoints: 9, theme: 'mountain', medals: { gold: 37, silver: 50, bronze: 69 },
     points: [[-96, -18], [-66, -52], [-28, -40], [-6, -72], [32, -62], [52, -28], [88, -36], [96, 8], [58, 30], [70, 70], [22, 78], [-18, 46], [-58, 68], [-94, 34]],
   },
 ];

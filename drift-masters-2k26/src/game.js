@@ -9,7 +9,7 @@ import { GameWorld, drawMinimap } from './world.js';
 
 const $ = (id) => document.getElementById(id);
 const save = loadSave(window.localStorage);
-const audio = new AudioClass(save.settings);
+const audio = new GameAudio(save.settings);
 const world = new GameWorld($('scene'), save.settings, save.tuning);
 
 let screenName = 'menu';
